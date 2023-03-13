@@ -35,6 +35,8 @@ const uint32_t height = 600;
     Semaphore imgSemaphore;
     Semaphore renderSemaphore;
 
+    Fence fence;
+
     struct QueueFamilyIndices {
         std::optional<uint32_t> gfxFamily;
         std::optional<uint32_t> presentFamily;
@@ -43,6 +45,9 @@ const uint32_t height = 600;
             return gfxFamily.has_value() && presentFamily.has_value();
         }
     };
+
+    const std::vector<const char*> validationLayers = {  };
+
 
     const std::vector<const char*> deviceExt = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 
@@ -56,8 +61,16 @@ const uint32_t height = 600;
         std::vector<const char*> ext(glfwExt, glfwExt
             + glfwExtCount);
 
+        ApplicationInfo info{
+            .pApplicationName = "Triangle",
+            .applicationVersion = VK_MAKE_VERSION(1,0,0),
+            .pEngineName = "r2e",
+            .engineVersion = VK_MAKE_VERSION(1,0,0),
+            .apiVersion = VK_API_VERSION_1_3
+        };
+
         InstanceCreateInfo ci{
-            .pApplicationInfo = {},
+            .pApplicationInfo = &info,
             .enabledExtensionCount = glfwExtCount,
             .ppEnabledExtensionNames = ext.data()
 
@@ -247,10 +260,39 @@ const uint32_t height = 600;
         return true;
     }
 
-    // todo: read spv
+    std::vector<char> readSpv(const std::string filename) {
+        std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
+        size_t fileSize = static_cast<size_t>(file.tellg());
+        std::vector<char> buffer(fileSize);
+
+        file.seekg(0);
+        file.read(buffer.data(), fileSize);
+
+        file.close();
+        std::cout << "SPV INFO --------------------" << std::endl;
+        std::cout << "buffer of shader file size is: " << fileSize << " and filename: " << filename << std::endl;
+
+        return buffer;
+
+
+}
     bool createPipeline() {
+        auto vertCode = readSpv("shaders/vert.spv");
+        auto fragCode = readSpv("shaders/frag.spv");
 
+        ShaderModule vertModule = createShaderModule(vertCode);
+        ShaderModule fragModule = createShaderModule(fragCode);
+
+        PipelineShaderStageCreateInfo vCi{ .stage = ShaderStageFlagBits::eVertex,
+        .module = vertModule,
+        .pName = "main" };
+
+        PipelineShaderStageCreateInfo fCi{ .stage = ShaderStageFlagBits::eFragment,
+        .module = fragModule,
+        .pName = "main" };
+
+        PipelineShaderStageCreateInfo shaderStages[] = { vCi, fCi };
 
         PipelineVertexInputStateCreateInfo vi{ .vertexBindingDescriptionCount = 0,
         .vertexAttributeDescriptionCount = 0 };
@@ -282,17 +324,39 @@ const uint32_t height = 600;
             .lineWidth = 1.0f
         };
 
+        ColorComponentFlags flags = ColorComponentFlagBits::eR | ColorComponentFlagBits::eG | ColorComponentFlagBits::eB
+            | ColorComponentFlagBits::eA;
+
+        PipelineColorBlendAttachmentState colorBlendAttachment{
+            .blendEnable = VK_FALSE,
+            .srcColorBlendFactor = BlendFactor::eZero,
+            .dstColorBlendFactor = BlendFactor::eOne,
+            .colorBlendOp = BlendOp::eAdd,
+            .srcAlphaBlendFactor = BlendFactor::eZero,
+            .dstAlphaBlendFactor = BlendFactor::eZero,
+            .alphaBlendOp = BlendOp::eAdd,
+            .colorWriteMask = flags
+        };
+
+        PipelineColorBlendStateCreateInfo cbs{
+            .logicOp = LogicOp::eClear,
+            .attachmentCount = 1,
+            .pAttachments = &colorBlendAttachment
+
+        };
+
         PipelineLayoutCreateInfo pipeLayoutCi{};
 
         pipelineLayout = device->createPipelineLayout(pipeLayoutCi);
 
         GraphicsPipelineCreateInfo pipelineCi{
             .stageCount = 2,
-            .pStages = nullptr,
+            .pStages = shaderStages,
             .pVertexInputState = &vi,
             .pInputAssemblyState = &ia,
             .pViewportState = &viewport,
             .pRasterizationState = &rs,
+            .pColorBlendState = &cbs,
             .layout = pipelineLayout,
             .renderPass = rp
         };
@@ -353,7 +417,7 @@ const uint32_t height = 600;
         commandBuffers = device->allocateCommandBuffers(ci);
 
         for (size_t i = 0;i < commandBuffers.size(); i++) {
-            ClearValue clearColor = { std::array<float,4>{0.0f, 1.0f, 0.0f, 1.0f} };
+            ClearValue clearColor = { std::array<float,4>{0.0f, 0.0f, 0.0f, 1.0f} };
 
             CommandBufferBeginInfo info{};
 
@@ -370,7 +434,7 @@ const uint32_t height = 600;
 
             commandBuffers[i].bindPipeline(PipelineBindPoint::eGraphics, pipeline);
 
-            //commandBuffers[i].draw(3, 1, 0, 0);
+            commandBuffers[i].draw(3, 1, 0, 0);
 
             commandBuffers[i].endRenderPass();
             commandBuffers[i].end();
@@ -393,7 +457,22 @@ const uint32_t height = 600;
         return true;
     }
 
+    bool createFence() {
+
+        FenceCreateInfo ci{ .flags = FenceCreateFlagBits::eSignaled };
+        fence = device->createFence( ci );
+
+        std::cout << "fence created" << std::endl;
+
+        return true;
+    }
+
     void render() {
+
+        device->waitForFences(fence, VK_TRUE, UINT64_MAX);
+
+        device->resetFences(fence);
+
         uint32_t imgIndex;
 
         imgIndex = device->acquireNextImageKHR(swapchain, UINT64_MAX, imgSemaphore, nullptr).value;
@@ -428,6 +507,7 @@ const uint32_t height = 600;
     }
 
     void cleanup() {
+        device->destroyFence(fence);
         device->destroySemaphore(renderSemaphore);
         device->destroySemaphore(imgSemaphore);
 
@@ -477,6 +557,7 @@ const uint32_t height = 600;
         createCommandBuffers();
 
         createSemaphores();
+        createFence();
     }
 
 
