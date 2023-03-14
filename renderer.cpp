@@ -6,12 +6,11 @@
 #include <vulkan/vulkan.hpp>
 #include <iostream>
 #include <fstream>
-#include <renderer.h>
+#include "renderer.h"
 
 
 using namespace vk;
-const uint32_t width = 800;
-const uint32_t height = 600;
+
 
 
 const std::vector<const char*> deviceExt = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
@@ -43,7 +42,7 @@ QueueFamilyIndices findQueueFamilies(PhysicalDevice device, SurfaceKHR surface) 
 	return indices;
 }
 
-renderer::renderer() {
+void renderer::init() {
 	createInstance();
 	createSurface();
 	selectGpu();
@@ -60,7 +59,7 @@ renderer::renderer() {
 	createSemaphores();
 	createFence();
 }
-renderer::~renderer() {
+void renderer::cleanup() {
 	device->destroyFence(fence);
 	device->destroySemaphore(renderSemaphore);
 	device->destroySemaphore(imgSemaphore);
@@ -85,8 +84,28 @@ renderer::~renderer() {
 	device->destroySwapchainKHR(swapchain);
 
 	instance->destroySurfaceKHR(surface);
+
+	glfwDestroyWindow(window);
+
+	glfwTerminate();
+}
+void renderer::update() {
+	while (!glfwWindowShouldClose(window)) {
+		glfwPollEvents();
+		 render();
+
+	}
+	 device->waitIdle();
 }
 
+void renderer::windowInit() {
+	glfwInit();
+	
+	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+
+	window = glfwCreateWindow(width, height, "Vulkan triangle", nullptr, nullptr);
+
+}
 
 bool renderer::createInstance() {
 	uint32_t glfwExtCount = 0;

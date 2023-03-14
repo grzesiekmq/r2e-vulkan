@@ -1,10 +1,15 @@
 #pragma once
 #include <GLFW/glfw3.h>
+#include <vector>
 
 using namespace vk;
- 
+const uint32_t width = 800;
+const uint32_t height = 600;
+
+
 struct renderer {
 	GLFWwindow* window;
+	Extent2D extent = { static_cast<uint32_t>(width), static_cast<uint32_t>(height) };
 
 	UniqueInstance instance;
 	PhysicalDevice gpu;
@@ -16,7 +21,6 @@ struct renderer {
 	RenderPass rp;
 	std::vector<Image> images;
 	std::vector<ImageView> imageViews;
-	Extent2D extent  ;
 	std::vector<Framebuffer> framebuffers;
  	Pipeline pipeline;
 	PipelineLayout pipelineLayout;
@@ -46,9 +50,10 @@ public:
 	bool createFence();
 	void render();
 	std::vector<char>   readSpv(const std::string filename);
-	 renderer();
-	 ~renderer();
-
+	void init();
+	void cleanup();
+	void update();
+	void windowInit();
 } ;
 
 

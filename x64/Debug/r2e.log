@@ -1,5 +1,7 @@
-﻿  renderer.cpp
-E:\r2e\r2e\renderer.cpp(494,23): warning C4834: discarding return value of function with 'nodiscard' attribute
-E:\r2e\r2e\renderer.cpp(525,25): warning C4834: discarding return value of function with 'nodiscard' attribute
+﻿  r2e.cpp
+  renderer.cpp
+E:\r2e\r2e\renderer.cpp(513,23): warning C4834: discarding return value of function with 'nodiscard' attribute
+E:\r2e\r2e\renderer.cpp(544,25): warning C4834: discarding return value of function with 'nodiscard' attribute
+  Generating Code...
 LINK : warning LNK4098: defaultlib 'MSVCRT' conflicts with use of other libs; use /NODEFAULTLIB:library
   r2e.vcxproj -> E:\r2e\r2e\x64\Debug\r2e.exe

@@ -4,32 +4,24 @@
 #include <vulkan/vulkan.hpp>
 #include <GLFW/glfw3.h>
 #include <vector>
-#include <renderer.h>
+#include "renderer.h"
 
 
 
 
 const std::vector<const char*> validationLayers = {  };
 
-const uint32_t width = 800;
-const uint32_t height = 600;
 
-GLFWwindow* window;
+ 
 
 renderer r;
-
 
 void cleanup() {
 	
 }
 
 void mainLoop() {
-	while (!glfwWindowShouldClose(window)) {
-		glfwPollEvents();
-		r.render();
-
-	}
-	r.device->waitIdle();
+	
 }
 
 void init() {
@@ -39,19 +31,12 @@ void init() {
 
 int main()
 {
-	glfwInit();
+	r.windowInit();
+	r.init();
+	r.update();
+	r.cleanup();
 
-	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-
-	window = glfwCreateWindow(width, height, "Vulkan triangle", nullptr, nullptr);
-
-
-	mainLoop();
-
-
-	glfwDestroyWindow(window);
-
-	glfwTerminate();
+	
 
 	return 0;
 }
