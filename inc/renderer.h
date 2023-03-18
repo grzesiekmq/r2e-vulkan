@@ -54,6 +54,8 @@ public:
 	void cleanup();
 	void update();
 	void windowInit();
+	void createVertexBuffer();
+	void loadModel();
 } ;
 
 

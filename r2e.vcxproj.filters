@@ -32,5 +32,16 @@
     <ClInclude Include="inc\util.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="inc\tiny_obj_loader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shader.vert">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="shader.frag">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

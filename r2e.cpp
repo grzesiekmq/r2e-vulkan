@@ -12,20 +12,20 @@
 const std::vector<const char*> validationLayers = {  };
 
 
- 
+
 
 renderer r;
 
 void cleanup() {
-	
+
 }
 
 void mainLoop() {
-	
+
 }
 
 void init() {
-	
+
 }
 
 
@@ -36,7 +36,7 @@ int main()
 	r.update();
 	r.cleanup();
 
-	
+
 
 	return 0;
 }

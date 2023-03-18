@@ -1,17 +1,24 @@
 #define VULKAN_HPP_NO_CONSTRUCTORS
+#define TINYOBJLOADER_IMPLEMENTATION
 
+#define GLM_ENABLE_EXPERIMENTAL
 
+#include "tiny_obj_loader.h"
+#include <glm/glm.hpp>
 #include <optional>
 #include <vector>
 #include <vulkan/vulkan.hpp>
 #include <iostream>
 #include <fstream>
+#include <array>
 #include "renderer.h"
 
 
 using namespace vk;
 
+Buffer vb;
 
+DeviceMemory vbMem;
 
 const std::vector<const char*> deviceExt = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 struct QueueFamilyIndices {
@@ -41,6 +48,36 @@ QueueFamilyIndices findQueueFamilies(PhysicalDevice device, SurfaceKHR surface) 
 	}
 	return indices;
 }
+uint32_t findMemType(PhysicalDevice gpu, uint32_t typeFilter, MemoryPropertyFlags
+	properties) {
+	PhysicalDeviceMemoryProperties memProperties;
+	memProperties =  gpu.getMemoryProperties();
+
+	for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+		if (typeFilter & (1 << i) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+			return i;
+		}
+	}
+
+}
+struct Vertex {
+	glm::vec2 pos;
+};
+
+std::vector<Vertex> vertices;
+VertexInputBindingDescription bindingDesc{
+	.binding = 0,
+	.stride = sizeof(Vertex),
+	.inputRate = VertexInputRate::eVertex
+};
+
+std::array<VertexInputAttributeDescription, 1> attribDesc{
+
+attribDesc[0].binding = 0,
+attribDesc[0].location = 0,
+attribDesc[0].format = Format::eR32G32Sfloat,
+attribDesc[0].offset = offsetof(Vertex, pos)
+};
 
 void renderer::init() {
 	createInstance();
@@ -53,7 +90,9 @@ void renderer::init() {
 	createRenderPass();
 	createPipeline();
 	createFramebuffers();
+	loadModel();
 	createCommandPool();
+	createVertexBuffer();
 	createCommandBuffers();
 
 	createSemaphores();
@@ -82,7 +121,8 @@ void renderer::cleanup() {
 	}
 
 	device->destroySwapchainKHR(swapchain);
-
+	device->destroyBuffer(vb);
+	device->freeMemory(vbMem);
 	instance->destroySurfaceKHR(surface);
 
 	glfwDestroyWindow(window);
@@ -318,6 +358,77 @@ std::vector<char> renderer::readSpv(const std::string filename) {
 
 
 }
+
+
+
+void renderer::createVertexBuffer() {
+	BufferCreateInfo bufferInfo{
+		.size = sizeof(vertices[0]) * vertices.size(),
+		.usage = BufferUsageFlagBits::eVertexBuffer,
+		.sharingMode = SharingMode::eExclusive
+	};
+
+	vb = device->createBuffer(bufferInfo);
+
+	MemoryRequirements memReq;
+
+	memReq = device->getBufferMemoryRequirements(vb);
+
+	MemoryAllocateInfo allocInfo{
+		.allocationSize = memReq.size,
+		.memoryTypeIndex = findMemType(gpu,memReq.memoryTypeBits, MemoryPropertyFlagBits::eHostVisible | MemoryPropertyFlagBits::eHostCoherent)
+
+	};
+	vbMem = device->allocateMemory(allocInfo);
+
+	device->bindBufferMemory(vb, vbMem, 0);
+
+	uint8_t* data = static_cast<uint8_t*>(device->mapMemory(vbMem, 0, memReq.size));
+	memcpy(data, vertices.data(), static_cast<size_t>(bufferInfo.size));
+	device->unmapMemory(vbMem);
+
+
+}
+
+
+void renderer::loadModel() {
+	using namespace tinyobj;
+
+	
+
+
+
+
+
+
+
+		const std::string MODEL_PATH = "models/p1.obj";
+
+		attrib_t attrib;
+		std::vector<shape_t> shapes;
+		// materials later
+		LoadObj(&attrib, &shapes, nullptr, nullptr, nullptr, MODEL_PATH.c_str());
+
+		for (const auto& shape : shapes) {
+			for (const auto& index : shape.mesh.indices) {
+
+				Vertex vertex{
+
+				};
+				vertex.pos = {
+	   attrib.vertices[3 * index.vertex_index + 0],
+	  attrib.vertices[3 * index.vertex_index + 1]
+
+				};
+				vertices.push_back(vertex);
+
+			}
+		}
+
+	
+}
+
+
 bool renderer::createPipeline() {
 	auto vertCode = readSpv("shaders/vert.spv");
 	auto fragCode = readSpv("shaders/frag.spv");
@@ -335,15 +446,19 @@ bool renderer::createPipeline() {
 
 	PipelineShaderStageCreateInfo shaderStages[] = { vCi, fCi };
 
-	PipelineVertexInputStateCreateInfo vi{ .vertexBindingDescriptionCount = 0,
-	.vertexAttributeDescriptionCount = 0 };
+	PipelineVertexInputStateCreateInfo vi{ .vertexBindingDescriptionCount = 1,
+	.pVertexBindingDescriptions = &bindingDesc,
+	.vertexAttributeDescriptionCount = static_cast<uint32_t>(attribDesc.size()),
+	.pVertexAttributeDescriptions = attribDesc.data()};
+
 
 	PipelineInputAssemblyStateCreateInfo ia{ .topology = PrimitiveTopology::eTriangleList };
 
 	Viewport vp{};
-	vp.x = vp.y = 0.0f;
+	vp.x = 		 0.0f;
 	vp.width = (float)extent.width;
-	vp.height = (float)extent.height;
+	vp.height = -(float)extent.height;
+	vp.y = extent.height;
 	vp.minDepth = 0.0f;
 	vp.maxDepth = 1.0f;
 
@@ -410,6 +525,7 @@ bool renderer::createPipeline() {
 
 	return true;
 
+
 }
 
 bool renderer::createFramebuffers() {
@@ -474,8 +590,12 @@ bool renderer::createCommandBuffers() {
 		commandBuffers[i].beginRenderPass(rpInfo, SubpassContents::eInline);
 
 		commandBuffers[i].bindPipeline(PipelineBindPoint::eGraphics, pipeline);
-
-		commandBuffers[i].draw(3, 1, 0, 0);
+		
+		Buffer vbs[] = { vb };
+		DeviceSize offsets[] = { 0 };
+		
+		commandBuffers[i].bindVertexBuffers(0, 1, vbs, offsets);
+		commandBuffers[i].draw(static_cast<uint32_t>(vertices.size()), 1, 0, 0);
 
 		commandBuffers[i].endRenderPass();
 		commandBuffers[i].end();
@@ -546,3 +666,9 @@ void renderer::render() {
 
 
 }
+
+
+
+
+
+	
