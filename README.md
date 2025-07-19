@@ -45,3 +45,8 @@ Comparison of Modern Graphics APIs — Alain
 
 ## Screenshot 
 ![](car.png)
+
+---
+
+*README assisted by ChatGPT.  
+The project code and design were created solely by the author without AI assistance.*
